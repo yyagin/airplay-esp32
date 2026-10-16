@@ -2,6 +2,7 @@
 
 #include "esp_err.h"
 #include <stdbool.h>
+#include <stdint.h>
 
 /**
  * Persistent settings storage (NVS)
@@ -14,6 +15,10 @@
  * Initialize settings module (call once at startup)
  */
 esp_err_t settings_init(void);
+
+/** Multi-room sync offset in ms (+ = later, - = earlier). */
+esp_err_t settings_get_sync_offset(int32_t *ms);
+esp_err_t settings_set_sync_offset(int32_t ms);
 
 /**
  * Get saved volume in dB

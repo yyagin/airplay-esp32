@@ -17,6 +17,23 @@
 #define PIPELINE_LATENCY_US 5000 // ~5ms scheduling + write delay
 #define MIN_STARTUP_FRAMES  4
 
+// Manual multi-room trim (+ = play later), set from the web UI / NVS.
+static volatile int32_t s_sync_offset_us = 0;
+
+void audio_timing_set_sync_offset_ms(int32_t ms) {
+  if (ms > 500) {
+    ms = 500;
+  }
+  if (ms < -500) {
+    ms = -500;
+  }
+  s_sync_offset_us = ms * 1000;
+}
+
+int32_t audio_timing_get_sync_offset_ms(void) {
+  return s_sync_offset_us / 1000;
+}
+
 // Position servo: corrects small standing playout offsets by trimming or
 // duplicating single samples.  Residual position errors arise from
 // drop-recovery after network stalls (bounded by the late threshold) and
@@ -213,6 +230,7 @@ static bool compute_early_us(const audio_timing_t *timing,
     pipeline_us = audio_output_get_hardware_latency_us();
   }
   target_ns -= (int64_t)(pipeline_us + PIPELINE_LATENCY_US) * 1000LL;
+  target_ns += (int64_t)s_sync_offset_us * 1000LL; // manual multi-room trim
 
   *early_us = (target_ns / 1000LL) - now_us;
 

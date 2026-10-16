@@ -67,6 +67,17 @@ input:focus{outline:none;border-color:#e94560}
 <span id='led-pct'>50%</span></div></div>
 <button class='btn btn-secondary' onclick='saveBrightness()'>Save Brightness</button>
 <div id='brightness-msg'></div>
+<div class='form-group' style='margin-top:18px'><label for='sync-off'>Multi-room Sync Offset</label>
+<div class='slider-row'><input type='range' id='sync-off' min='-200' max='200' step='1' value='0' oninput='syncLabel(this.value)' onchange='saveSync(this.value)'>
+<span id='sync-val'>0 ms</span></div>
+<div style='display:flex;gap:8px;margin-top:8px'>
+<button class='btn btn-secondary' onclick='nudgeSync(-5)'>&minus;5 ms</button>
+<button class='btn btn-secondary' onclick='nudgeSync(-1)'>&minus;1</button>
+<button class='btn btn-secondary' onclick='nudgeSync(1)'>+1</button>
+<button class='btn btn-secondary' onclick='nudgeSync(5)'>+5 ms</button>
+<button class='btn btn-secondary' onclick='saveSync(0)'>Reset</button></div>
+<small>+ plays later, &minus; plays earlier. Applies instantly while playing.</small></div>
+<div id='sync-msg'></div>
 <div id='chan-group'>
 <div class='form-group' style='margin-top:18px'><label for='chan-mode' id='chan-label'>Output Channel</label>
 <select id='chan-mode' onchange='saveChannel()'>
@@ -144,6 +155,18 @@ async function saveBrightness(){
   try{var r=await fetch('/api/led/brightness',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({brightness:v})});
     var d=await r.json();if(d.success){msg('brightness-msg','Saved!','ok');}else{msg('brightness-msg',d.error,'err');}}
   catch(e){msg('brightness-msg','Error','err');console.error('saveBrightness failed',e);}}
+function syncLabel(v){document.getElementById('sync-val').textContent=(v>0?'+':'')+v+' ms';}
+async function loadSync(){
+  try{var r=await fetch('/api/sync_offset');var d=await r.json();
+    if(d.success){document.getElementById('sync-off').value=d.ms;syncLabel(d.ms);}}
+  catch(e){console.warn('Could not load sync offset',e);}}
+async function saveSync(v){
+  v=Math.max(-500,Math.min(500,Number.parseInt(v,10)||0));
+  document.getElementById('sync-off').value=v;syncLabel(v);
+  try{var r=await fetch('/api/sync_offset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ms:v})});
+    var d=await r.json();if(d.success){syncLabel(d.ms);msg('sync-msg','Saved!','ok');}else{msg('sync-msg','Error','err');}}
+  catch(e){msg('sync-msg','Error','err');}}
+function nudgeSync(dv){saveSync(Number.parseInt(document.getElementById('sync-off').value,10)+dv);}
 async function loadChannel(){
   try{var r=await fetch('/api/audio/channel');var d=await r.json();
     if(d.success){document.getElementById('chan-mode').value=String(d.mode);
@@ -249,5 +272,5 @@ window.onload=function(){
   document.getElementById('fw-file').onchange=function(e){var f=e.target.files[0];
     document.getElementById('fw-name').textContent=f?f.name:'No file selected';
     document.getElementById('ota-btn').disabled=!f;};
-  loadInfo();loadBrightness();loadChannel();setInterval(loadInfo,30000);};
+  loadInfo();loadBrightness();loadSync();loadChannel();setInterval(loadInfo,30000);};
 </script></body></html>

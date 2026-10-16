@@ -13,6 +13,7 @@
 #include "esp_wifi.h"
 
 #include "settings.h"
+#include "audio_timing.h"
 #include "led.h"
 #include "wifi.h"
 #include "ethernet.h"
@@ -344,6 +345,35 @@ static esp_err_t device_name_handler(httpd_req_t *req) {
   cJSON_Delete(response);
 
   return ESP_OK;
+}
+
+static esp_err_t sync_offset_get_handler(httpd_req_t *req) {
+  char buf[48];
+  snprintf(buf, sizeof(buf), "{\"ms\":%d,\"success\":true}",
+           (int)audio_timing_get_sync_offset_ms());
+  httpd_resp_set_type(req, "application/json");
+  return httpd_resp_send(req, buf, HTTPD_RESP_USE_STRLEN);
+}
+
+static esp_err_t sync_offset_post_handler(httpd_req_t *req) {
+  char content[64];
+  int ret = httpd_req_recv(req, content, sizeof(content) - 1);
+  if (ret <= 0) {
+    httpd_resp_send_500(req);
+    return ESP_FAIL;
+  }
+  content[ret] = '\0';
+  cJSON *json = cJSON_Parse(content);
+  cJSON *val = json ? cJSON_GetObjectItem(json, "ms") : NULL;
+  if (!val || !cJSON_IsNumber(val)) {
+    cJSON_Delete(json);
+    httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Expected {\"ms\": <int>}");
+    return ESP_FAIL;
+  }
+  audio_timing_set_sync_offset_ms((int32_t)val->valuedouble);
+  settings_set_sync_offset(audio_timing_get_sync_offset_ms());
+  cJSON_Delete(json);
+  return sync_offset_get_handler(req);
 }
 
 static esp_err_t led_brightness_get_handler(httpd_req_t *req) {
@@ -1307,7 +1337,7 @@ esp_err_t web_server_start(uint16_t port) {
 #endif
   config.lru_purge_enable = true; // Reclaim stale sockets when all are in use
   config.max_uri_handlers =
-      30; // Room for captive portal + EQ + speedtest + brightness + channel
+      32; // Room for captive portal + EQ + speedtest + brightness + channel
 #ifdef DAC_HAS_SUB_OFFSET
   config.max_uri_handlers += 2; // sub level get/post
 #endif
@@ -1371,6 +1401,15 @@ esp_err_t web_server_start(uint16_t port) {
                                  .method = HTTP_POST,
                                  .handler = device_name_handler};
   httpd_register_uri_handler(s_server, &device_name_uri);
+
+  httpd_uri_t sync_offset_get_uri = {.uri = "/api/sync_offset",
+                                     .method = HTTP_GET,
+                                     .handler = sync_offset_get_handler};
+  httpd_register_uri_handler(s_server, &sync_offset_get_uri);
+  httpd_uri_t sync_offset_post_uri = {.uri = "/api/sync_offset",
+                                      .method = HTTP_POST,
+                                      .handler = sync_offset_post_handler};
+  httpd_register_uri_handler(s_server, &sync_offset_post_uri);
 
   httpd_uri_t led_brightness_get_uri = {.uri = "/api/led/brightness",
                                         .method = HTTP_GET,

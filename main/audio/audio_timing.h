@@ -8,6 +8,13 @@
 #include "audio_receiver.h"
 #include "audio_stream.h"
 
+/**
+ * Manual sync offset for multi-room alignment (e.g. with a HomePod).
+ * Positive = play later, negative = play earlier. Clamped to +/-500 ms.
+ */
+void audio_timing_set_sync_offset_ms(int32_t ms);
+int32_t audio_timing_get_sync_offset_ms(void);
+
 typedef struct {
   uint32_t output_latency_us;
   uint32_t target_buffer_frames;

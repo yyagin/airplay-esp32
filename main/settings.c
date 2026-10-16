@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include "settings.h"
 
 #include "dac.h"
@@ -19,6 +20,7 @@ static const char *TAG = "settings";
 #define NVS_KEY_DEVICE_NAME    "device_name"
 #define NVS_KEY_EQ_GAINS       "eq_gains"
 #define NVS_KEY_LED_BRIGHTNESS "led_bright"
+#define NVS_KEY_SYNC_OFFSET    "sync_off"
 #define NVS_KEY_CHANNEL_MODE   "chan_mode"
 #define NVS_KEY_SUB_OFFSET     "sub_off"
 #define NVS_KEY_SUB_XOVER      "sub_xo"
@@ -836,5 +838,38 @@ settings_set_biamp_eq(const float gains_db[2][2][SETTINGS_WAY_BANDS]) {
   } else {
     ESP_LOGE(TAG, "Failed to save bi-amp EQ: %s", esp_err_to_name(err));
   }
+  return err;
+}
+
+/* ================================================================== */
+/*  Multi-room sync offset (ms)                                        */
+/* ================================================================== */
+
+esp_err_t settings_get_sync_offset(int32_t *ms) {
+  if (!ms) {
+    return ESP_ERR_INVALID_ARG;
+  }
+  nvs_handle_t nvs;
+  esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READONLY, &nvs);
+  if (err != ESP_OK) {
+    return ESP_ERR_NOT_FOUND;
+  }
+  err = nvs_get_i32(nvs, NVS_KEY_SYNC_OFFSET, ms);
+  nvs_close(nvs);
+  return err;
+}
+
+esp_err_t settings_set_sync_offset(int32_t ms) {
+  nvs_handle_t nvs;
+  esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &nvs);
+  if (err != ESP_OK) {
+    return err;
+  }
+  err = nvs_set_i32(nvs, NVS_KEY_SYNC_OFFSET, ms);
+  if (err == ESP_OK) {
+    err = nvs_commit(nvs);
+  }
+  nvs_close(nvs);
+  ESP_LOGI(TAG, "Saved sync offset: %" PRId32 " ms", ms);
   return err;
 }

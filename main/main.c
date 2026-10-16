@@ -1,5 +1,6 @@
 #include "audio_output.h"
 #include "audio_receiver.h"
+#include "audio_timing.h"
 #include "buttons.h"
 #include "spiram_task.h"
 #include "display.h"
@@ -218,6 +219,12 @@ void app_main(void) {
   }
   ESP_ERROR_CHECK(ret);
   ESP_ERROR_CHECK(settings_init());
+  {
+    int32_t sync_ms = 0;
+    if (settings_get_sync_offset(&sync_ms) == ESP_OK) {
+      audio_timing_set_sync_offset_ms(sync_ms);
+    }
+  }
 #ifdef CONFIG_DAC_TAS57XX
   // Load persisted sub level offset (pre-init safe; applied on first volume).
   float sub_off;
